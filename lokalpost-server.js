@@ -8,12 +8,19 @@ redis.on("error", function (err) {
         console.log("Error " + err);
     });
 
+socketio.enable('browser client minification');
+socketio.enable('browser client etag');
+socketio.enable('browser client gzip');
+socketio.set('log level', 2);
 socketio.sockets.on('connection', function(socket){
   var ip_addr = socket.handshake.address.address;
-  var location_key = ip_addr + "_location";
+  var message_key = "message_" + ip_addr;
+  var location_key = "location_" + ip_addr;
+  // expire redis values after about six months
+  var redis_ttl = 60 * 60 * 24 * 30 * 6;
   // join room using ip address as room name
   socket.join(ip_addr);
-  redis.lrange(ip_addr, 0, 4, function(err, cached_messages){
+  redis.lrange(message_key, 0, 4, function(err, cached_messages){
     if(cached_messages.length == 0){
       var beginning = (new Date(year=1970, month=0)).getTime();
       socket.emit('init', {'message': '', 'name':'', 'time':beginning});
@@ -34,10 +41,12 @@ socketio.sockets.on('connection', function(socket){
     var now = (new Date()).getTime();
     data['time'] = now;
     data.message = clean_input(data.message, 256);
+    data.message = urlize(data.message);
     data.name = clean_input(data.name, 32);
     socketio.sockets.in(ip_addr).emit('broadcast', data);
-    redis.lpush(ip_addr, JSON.stringify(data));
-    redis.ltrim(ip_addr, 0, 4);
+    redis.lpush(message_key, JSON.stringify(data));
+    redis.ltrim(message_key, 0, 4);
+    redis.expire(message_key, redis_ttl);
   });
   socket.on('location', function(data){
     data = clean_input(data, 32);    
@@ -45,6 +54,7 @@ socketio.sockets.on('connection', function(socket){
     data = sanitize(data).entityDecode();
     socketio.sockets.in(ip_addr).emit('location_broadcast', {'location': data});
     redis.set(location_key, data);
+    redis.expire(location_key, redis_ttl);
   });
 });
 
@@ -62,4 +72,18 @@ function clean_input(string, max_length){
   string = string.slice(0, max_length);
   string = sanitize(string).xss();
   return sanitize(string).entityEncode();
+}
+
+// url regex from
+// http://stackoverflow.com/questions/3809401/what-is-a-good-regular-expression-to-match-a-url
+var expression = /[-a-zA-Z0-9@:%_\+.~#?&//=]{2,256}\.[a-z]{2,4}\b(\/[-a-zA-Z0-9@:%_\+.~#?&//=]*)?/gi;
+var regex = new RegExp(expression);
+
+function urlize(text){
+  return text.replace(regex, function(url){
+    if(url.indexOf('://') == -1){
+      url = 'http://' + url;
+    }
+    return '<a href="' + url + '" target="_blank">' + url + '</a>';
+  })
 }
