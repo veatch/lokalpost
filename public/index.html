@@ -7,22 +7,47 @@
     <script src="http://lokalpo.st/jquery-1.8.0.min.js"></script>
     <script src="http://lokalpo.st/bootstrap/bootstrap/js/bootstrap.min.js"></script>
     <script src="http://lokalpo.st/socket.io/socket.io.js"></script>
+    <script src="http://lokalpo.st/moment.min.js"></script>
     <link href="http://lokalpo.st/bootstrap/bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="http://lokalpo.st/bootstrap/bootstrap/css/bootstrap-responsive.min.css" rel="stylesheet">
   </head>
 <body>
 <script src="http://lokalpo.st/lokalpost-client.js"></script>
+<div style="width:100%; height:100px; position:fixed; top:0; left:0; background:#fff;"></div>
 <div class="container">
+<div class="navbar navbar-fixed-top" style="width:100%; background:#fff; padding-top:20px">
+<div style="width:300px">
 <div class="row">
 <div class="span top-left">
 <input id="location" type="text" class="bold" placeholder="location name" maxlength="32"/>
 </div>
-<div class="span top-right">
-<a id="wat" href="#" rel="popover" data-html="true" data-placement="left" data-title="<a href='#' class='close-popover'>X</a>" data-content="<p>lokalpo.st lets you post messages to other people on your local network (e.g. home, office, coffee shop). You can use it like a bulletin board or a chat room.</p><p><b>Important:</b> Don't post any private information. Your network's ip address probably changes periodically. After a change, someone who visits lokalpo.st from a different network with your old ip address would be able to see your old posts.</p><p>Built by <a href='http://twitter.com/veatch'>@veatch</a>. Source on <a href='http://github.com/veatch/lokalpost'>github</a>.</p>">what is this?</a>
-</div>
+<div class="span top-right" style="width:65px; display:none;"><span id="room_count"></span> people online</div>
 </div>
 <input id="username" type="text" placeholder="your name" class="clearable" maxlength="32"/>
-<div id="messages"></div>
+</div>
+<div id="welcome" style="padding-bottom:10px; padding-right:20px;">
+lokalpo.st lets you connect with other people who share your internet connection...
+<span style="color:#ccc;"> <a id="read-more" href='#'>[read more]</a></span>
+<div id="welcome-more" style="display:none;">Messages posted while connected to a coffee shop's
+wifi are only visible to other people connected to the same wifi. Posts from your office
+can only be seen by others on that network, and so on. Posts appear on the page in
+real time, so you can use lokalpo.st as a chat room. There is an indicator in the upper
+right when others are online. The ten most recent posts are saved
+and displayed when the page loads, so you can also use lokalpo.st as a bulletin board.
+</p><p><b>Important:</b> Don't post any private
+information. Your network's ip address probably changes periodically. After a
+change, someone who visits lokalpo.st from a different network with your old ip
+address will be able to see your old posts.</p>
+<p>Built by <a href='http://twitter.com/veatch'>@veatch</a>.
+Source on <a href='http://github.com/veatch/lokalpost'>github</a>.</p>
+<a href='#' id="welcome-close">[close]</a>
+</div>
+</div>
+</div>
+<div style="padding-top:80px;" id="subcontainer">
+<div id="messages">
+</div>
+</div>
 <form id="form">
   <input id="msg_input" type="text" placeholder="post" class="clearable" maxlength="256">
   <button type="submit" class="btn btn-submit">submit</button>

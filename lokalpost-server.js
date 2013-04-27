@@ -1,4 +1,5 @@
 var app = require('http').createServer(http_server).listen(80, '50.116.46.193')
+  , moment = require('moment')
   , stat = require('node-static')
   , redis = require('redis').createClient()
   , socketio = require('socket.io').listen(app)
@@ -12,6 +13,8 @@ socketio.enable('browser client minification');
 socketio.enable('browser client etag');
 socketio.enable('browser client gzip');
 socketio.set('log level', 2);
+//socketio.set('origins', '*lokalpo.st:*');// this breaks js for www.
+var message_limit = 9; // save and display 10 messages
 socketio.sockets.on('connection', function(socket){
   var ip_addr = socket.handshake.address.address;
   var message_key = "message_" + ip_addr;
@@ -20,11 +23,9 @@ socketio.sockets.on('connection', function(socket){
   var redis_ttl = 60 * 60 * 24 * 30 * 6;
   // join room using ip address as room name
   socket.join(ip_addr);
-  redis.lrange(message_key, 0, 4, function(err, cached_messages){
-    if(cached_messages.length == 0){
-      var beginning = (new Date(year=1970, month=0)).getTime();
-      socket.emit('init', {'message': '', 'name':'', 'time':beginning});
-    } else {
+  room_count();
+  redis.lrange(message_key, 0, message_limit, function(err, cached_messages){
+    if(cached_messages.length != 0){
       cached_messages = cached_messages.reverse();
       for (var i = 0; i < cached_messages.length; i += 1){
         socket.emit('init', JSON.parse(cached_messages[i]));
@@ -37,15 +38,21 @@ socketio.sockets.on('connection', function(socket){
     }
   });
 
+  function room_count(){
+    var data = {};
+    data.count = socketio.sockets.clients(ip_addr).length;
+    socketio.sockets.in(ip_addr).emit('room_count', data);
+  }
+
   socket.on('message', function(data){
-    var now = (new Date()).getTime();
+    var now = moment().utc().unix();
     data['time'] = now;
     data.message = clean_input(data.message, 256);
     data.message = urlize(data.message);
     data.name = clean_input(data.name, 32);
     socketio.sockets.in(ip_addr).emit('broadcast', data);
     redis.lpush(message_key, JSON.stringify(data));
-    redis.ltrim(message_key, 0, 4);
+    redis.ltrim(message_key, 0, message_limit);
     redis.expire(message_key, redis_ttl);
   });
   socket.on('location', function(data){
@@ -55,6 +62,10 @@ socketio.sockets.on('connection', function(socket){
     socketio.sockets.in(ip_addr).emit('location_broadcast', {'location': data});
     redis.set(location_key, data);
     redis.expire(location_key, redis_ttl);
+  });
+  socket.on('disconnect', function(data){
+    socket.leave(ip_addr);
+    room_count();
   });
 });
 
